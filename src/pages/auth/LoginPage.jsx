@@ -2,10 +2,15 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
+import logo from "../../assets/logo.png"; // pastikan file logo ada di src/assets/logo.png
+import bgImage from "../../assets/bg-school.png"; // gambar background
 
 // Schema validasi
 const loginSchema = z.object({
-  username: z.string().min(5, "Username minimal 5 karakter"),
+  username: z
+    .string()
+    .regex(/^[0-9]+$/, "NIP / NISN hanya boleh berisi angka")
+    .min(5, "NIP / NISN minimal 5 digit"),
   password: z.string().min(8, "Password minimal 8 karakter"),
 });
 
@@ -22,9 +27,9 @@ export default function LoginPage() {
 
   const onSubmit = (data) => {
     // Simulasi role berdasarkan username
-    if (data.username.toLowerCase().includes("admin")) {
+    if (data.username.startsWith("1")) {
       navigate("/admin/dashboard");
-    } else if (data.username.toLowerCase().includes("guru")) {
+    } else if (data.username.startsWith("2")) {
       navigate("/guru/dashboard");
     } else {
       navigate("/orangtua/dashboard");
@@ -32,8 +37,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-base-200">
-      <div className="card w-96 bg-base-100 shadow-xl p-6">
+    <div
+      className="flex items-center justify-center min-h-screen bg-cover bg-center"
+      style={{ backgroundImage: `url(${bgImage})` }}
+    >
+      <div className="card w-96 bg-base-100 shadow-xl p-6 bg-opacity-90 backdrop-blur-sm">
+        {/* Logo */}
+        <div className="flex justify-center mb-4">
+          <img src={logo} alt="Logo Sekolah" className="w-20 h-20" />
+        </div>
+
         <h2 className="text-2xl font-bold text-center mb-4">
           Sistem Monitoring Nilai Siswa
         </h2>
@@ -42,7 +55,7 @@ export default function LoginPage() {
         </p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Username */}
+          {/* NIP / NISN */}
           <div>
             <label className="label">
               <span className="label-text">NIP / NISN</span>
