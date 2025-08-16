@@ -10,6 +10,7 @@ import LoginPage from "../pages/auth/LoginPage";
 
 // Admin
 import DashboardAdmin from "../pages/admin/DashboardAdmin";
+import AkunPengguna from "../pages/admin/akun-pengguna/AkunPenggunaPage";
 
 // Guru
 import DashboardGuru from "../pages/guru/DashboardGuru";
@@ -27,6 +28,7 @@ export default function AppRoutes() {
         {/* Admin */}
         <Route element={<AdminLayout />}>
           <Route path="/admin/dashboard" element={<DashboardAdmin />} />
+          <Route path="/admin/akun-pengguna" element={<AkunPengguna />} />
         </Route>
 
         {/* Guru */}
