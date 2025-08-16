@@ -1,5 +1,10 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
+// Layouts
+import AdminLayout from "../layouts/AdminLayout";
+import GuruLayout from "../layouts/GuruLayout";
+import OrangTuaLayout from "../layouts/OrangTuaLayout";
+
 // Pages Auth
 import LoginPage from "../pages/auth/LoginPage";
 
