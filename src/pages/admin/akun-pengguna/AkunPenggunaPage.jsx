@@ -1,648 +1,561 @@
-import { useState } from "react";
-import { FaPlus, FaUsers, FaSearch, FaDownload, FaUpload, FaEdit, FaTimes } from "react-icons/fa";
-import AkunTable from "./AkunTable";
-import AkunFormModal from "./AkunFormModal";
-import BulkImportModal from "./BulkImportModal";
-import { useNotification, ConfirmationModal } from "../../../components/notifications";
-import React from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { FaUsers, FaEdit, FaTrash } from "react-icons/fa";
+import StatCard from "../../../components/StatCard";
+import SearchBar from "../../../components/SearchBar";
+import DataTable from "../../../components/DataTable";
+import ModalForm from "../../../components/ModalForm";
+import BulkActions from "../../../components/BulkActions";
+import BulkEditModal from "../../../components/BulkEditModal";
+import BulkImportModal from "../../../components/BulkImportModal";
+import DeleteConfirmModal from "../../../components/DeleteConfirmModal";
+import { useNotification } from "../../../hooks/useNotification";
 
 export default function AkunPenggunaPage() {
-  const { showSuccess, showError, showWarning, showLoading, dismissLoading } = useNotification();
-  
-  const [data, setData] = useState([
-    { id: 1, nama: "Budi Santoso", nipnisn: "1234567890", role: "Guru", status: "Aktif" },
-    { id: 2, nama: "Siti Aminah", nipnisn: "0987654321", role: "Orang Tua", status: "Aktif" },
-    { id: 3, nama: "Admin Sistem", nipnisn: "1111111111", role: "Admin", status: "Nonaktif" },
-    { id: 4, nama: "Rina Wati", nipnisn: "2222222222", role: "Guru", status: "Aktif" },
-    { id: 5, nama: "Ahmad Hidayat", nipnisn: "3333333333", role: "Orang Tua", status: "Aktif" },
-    { id: 6, nama: "Dewi Sartika", nipnisn: "4444444444", role: "Guru", status: "Aktif" },
-    { id: 7, nama: "Bambang Sutejo", nipnisn: "5555555555", role: "Admin", status: "Aktif" },
-    { id: 8, nama: "Sri Wahyuni", nipnisn: "6666666666", role: "Guru", status: "Nonaktif" },
-    { id: 9, nama: "Joko Widodo", nipnisn: "7777777777", role: "Orang Tua", status: "Aktif" },
-    { id: 10, nama: "Mega Putri", nipnisn: "8888888888", role: "Guru", status: "Aktif" },
-    { id: 11, nama: "Rudi Hartono", nipnisn: "9999999999", role: "Admin", status: "Aktif" },
-    { id: 12, nama: "Sari Indah", nipnisn: "1010101010", role: "Guru", status: "Aktif" },
-    { id: 13, nama: "Doni Kusuma", nipnisn: "1212121212", role: "Orang Tua", status: "Nonaktif" },
-    { id: 14, nama: "Lina Marlina", nipnisn: "1313131313", role: "Guru", status: "Aktif" },
-    { id: 15, nama: "Eko Prasetyo", nipnisn: "1414141414", role: "Admin", status: "Aktif" },
-  ]);
+  // ===== HOOKS =====
+  const notification = useNotification();
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editData, setEditData] = useState(null);
-  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
-  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
-  const [bulkEditData, setBulkEditData] = useState([]);
+  // ===== CONSTANTS =====
+  const totalAkun = 15;
+  const akunAktif = 12;
+  const akunNonaktif = 3;
 
-  // Confirmation modal states
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, data: null });
-  const [bulkDeleteModal, setBulkDeleteModal] = useState({ isOpen: false, selectedIds: [] });
-
+  // ===== STATE MANAGEMENT =====
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("Semua Role");
   const [statusFilter, setStatusFilter] = useState("Semua Status");
 
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Filter logic
-  const filteredData = data.filter((item) => {
-    const matchSearch =
-      item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.nipnisn.includes(searchTerm);
-    const matchRole = roleFilter === "Semua Role" || item.role === roleFilter;
-    const matchStatus = statusFilter === "Semua Status" || item.status === statusFilter;
-    return matchSearch && matchRole && matchStatus;
-  });
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentData = filteredData.slice(startIndex, endIndex);
-
-  // Reset to first page when filter changes
-  React.useEffect(() => {
+  // Auto-reset pagination when filters change
+  useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, roleFilter, statusFilter]);
 
-  // Statistics
-  const totalAkun = data.length;
-  const akunAktif = data.filter(item => item.status === "Aktif").length;
-  const akunNonaktif = data.filter(item => item.status === "Nonaktif").length;
+  // Table states
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // CRUD
-  const handleSubmit = (akun) => {
-    try {
-      if (editData) {
-        setData(data.map((d) => (d.id === editData.id ? { ...akun, id: d.id } : d)));
-        showSuccess(`Akun ${akun.nama} berhasil diupdate!`);
-      } else {
-        setData([...data, { ...akun, id: data.length + 1 }]);
-        showSuccess(`Akun ${akun.nama} berhasil ditambahkan!`);
-      }
-      setIsModalOpen(false);
-      setEditData(null);
-    } catch {
-      showError("Gagal menyimpan data akun");
-    }
+  // Modal states
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editRow, setEditRow] = useState(null);
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteType, setDeleteType] = useState("single"); // "single" atau "bulk"
+  const [deleteItem, setDeleteItem] = useState(null); // Untuk single delete
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+
+  // ===== EVENT HANDLERS =====
+  // Filter handlers
+  const handleSearchChange = (value) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
   };
 
-  const handleEdit = (akun) => {
-    setEditData(akun);
-    setIsModalOpen(true);
+  const handleRoleChange = (value) => {
+    setRoleFilter(value);
+    setCurrentPage(1);
   };
 
-  const handleDelete = (id) => {
-    const akun = data.find(item => item.id === id);
-    setDeleteModal({ isOpen: true, data: akun });
+  const handleStatusChange = (value) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  };
+
+  // Bulk actions handlers
+  const handleBulkEdit = () => setIsBulkEditOpen(true);
+  
+  const handleBulkDelete = () => {
+    setDeleteType("bulk");
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleSingleDelete = (item) => {
+    setDeleteType("single");
+    setDeleteItem(item);
+    setIsDeleteModalOpen(true);
   };
 
   const confirmDelete = () => {
     try {
-      const { data: akun } = deleteModal;
-      setData(data.filter((d) => d.id !== akun.id));
-      showSuccess(`Akun ${akun.nama} berhasil dihapus!`);
-    } catch {
-      showError("Gagal menghapus akun");
-    }
-  };
-
-  // Bulk Import Functions
-  const handleBulkImport = (bulkData) => {
-    try {
-      const loadingId = showLoading(`Mengimpor ${bulkData.length} akun...`);
+      if (deleteType === "bulk") {
+        setDummyData(prevData => 
+          prevData.filter(item => !selectedRows.includes(item.id))
+        );
+        notification.showSuccessMessage("bulkDelete");
+        setSelectedRows([]);
+      } else {
+        setDummyData(prevData => 
+          prevData.filter(item => item.id !== deleteItem.id)
+        );
+        notification.showSuccessMessage("delete", `akun ${deleteItem.nama}`);
+      }
       
-      // Simulate processing time
-      setTimeout(() => {
-        const newAccounts = bulkData.map((account, index) => ({
-          ...account,
-          id: data.length + index + 1,
-          status: account.status || "Aktif"
-        }));
-        setData([...data, ...newAccounts]);
-        setIsBulkImportOpen(false);
-        
-        // Dismiss loading notification
-        dismissLoading(loadingId);
-        showSuccess(`${bulkData.length} akun berhasil diimpor!`);
-      }, 1500);
-    } catch {
-      showError("Gagal mengimpor akun");
+      setIsDeleteModalOpen(false);
+      setDeleteItem(null);
+    } catch (error) {
+      notification.showErrorMessage("delete", error.message);
     }
   };
 
-  // Bulk Edit Functions
-  const handleBulkEdit = (selectedAccounts) => {
-    setBulkEditData(selectedAccounts);
-    setIsBulkEditOpen(true);
-  };
+  const handleClearSelection = () => setSelectedRows([]);
 
-  // Bulk Delete Functions
-  const handleBulkDelete = (selectedIds) => {
-    if (selectedIds.length === 0) return;
+  // ===== CONFIGURATION =====
+  // Fields for Edit Akun
+  const editFields = [
+    { name: "nama", label: "Nama", type: "text", required: true },
+    {
+      name: "nip",
+      label: "NIP/NISN",
+      type: "text",
+      required: true,
+      validation: "numbersOnly,minLength:10",
+      helpText: "Hanya angka, minimal 10 digit"
+    },
+    {
+      name: "role",
+      label: "Role",
+      type: "select",
+      required: true,
+      options: [
+        { value: "Admin", label: "Admin" },
+        { value: "Guru", label: "Guru" },
+        { value: "Orang Tua", label: "Orang Tua" }
+      ]
+    },
+    {
+      name: "status",
+      label: "Status",
+      type: "select",
+      required: true,
+      options: [
+        { value: "Aktif", label: "Aktif" },
+        { value: "Nonaktif", label: "Nonaktif" }
+      ]
+    }
+  ];
+
+  // ===== DATA =====
+  // Dummy data untuk table
+  const [dummyData, setDummyData] = useState([
+    { id: 1, nama: "Ahmad Supriadi", nip: "198501152010012001", role: "Guru", status: "Aktif" },
+    { id: 2, nama: "Siti Nurhaliza", nip: "198603202010012002", role: "Guru", status: "Aktif" },
+    { id: 3, nama: "Budi Santoso", nip: "198704152010012003", role: "Guru", status: "Aktif" },
+    { id: 4, nama: "Dewi Sartika", nip: "198805102010012004", role: "Guru", status: "Nonaktif" },
+    { id: 5, nama: "Rudi Hermawan", nip: "198906052010012005", role: "Guru", status: "Aktif" },
+    { id: 6, nama: "Nina Marlina", nip: "199007152010012006", role: "Guru", status: "Aktif" },
+    { id: 7, nama: "Agus Setiawan", nip: "199108202010012007", role: "Guru", status: "Aktif" },
+    { id: 8, nama: "Yuni Safitri", nip: "199209052010012008", role: "Guru", status: "Nonaktif" },
+    { id: 9, nama: "Doni Kusuma", nip: "199310152010012009", role: "Guru", status: "Aktif" },
+    { id: 10, nama: "Rina Wati", nip: "199411202010012010", role: "Guru", status: "Aktif" },
+    { id: 11, nama: "Joko Widodo", nip: "199512052010012011", role: "Guru", status: "Aktif" },
+    { id: 12, nama: "Sri Mulyani", nip: "199601152010012012", role: "Guru", status: "Aktif" },
+    { id: 13, nama: "Bambang Brodjonegoro", nip: "199702202010012013", role: "Guru", status: "Nonaktif" },
+    { id: 14, nama: "Erick Thohir", nip: "199803052010012014", role: "Guru", status: "Aktif" },
+    { id: 15, nama: "Luhut Binsar Pandjaitan", nip: "199904152010012015", role: "Guru", status: "Aktif" }
+  ]);
+
+  // SearchBar configuration
+  const searchBarConfig = {
+    // Search props
+    searchValue: searchTerm,
+    onSearchChange: handleSearchChange,
+    searchPlaceholder: "Cari nama atau NIP/NISN...",
     
-    const selectedAccounts = data.filter(item => selectedIds.includes(item.id));
-    const accountNames = selectedAccounts.map(acc => acc.nama).join(", ");
+    // Filter props
+    roleOptions: [
+      { value: "Semua Role", label: "Semua Role" },
+      { value: "Admin", label: "Admin" },
+      { value: "Guru", label: "Guru" },
+      { value: "Orang Tua", label: "Orang Tua" }
+    ],
+    selectedRole: roleFilter,
+    onRoleChange: handleRoleChange,
     
-    showWarning(`Anda akan menghapus ${selectedIds.length} akun: ${accountNames}`);
-    setBulkDeleteModal({ isOpen: true, selectedIds });
+    statusOptions: [
+      { value: "Semua Status", label: "Semua Status" },
+      { value: "Aktif", label: "Aktif" },
+      { value: "Nonaktif", label: "Nonaktif" }
+    ],
+    selectedStatus: statusFilter,
+    onStatusChange: handleStatusChange,
+    
+    // Action props
+    onReset: () => {
+      setSearchTerm("");
+      setRoleFilter("Semua Role");
+      setStatusFilter("Semua Status");
+      setCurrentPage(1); // Reset ke halaman pertama
+      
+      // Show info notification
+      notification.showInfoMessage("reset");
+    },
+    onImport: () => setIsImportOpen(true),
+    importButtonText: "Tambah Banyak Akun",
+    onAdd: () => setIsAddOpen(true),
+    addButtonText: "Tambah Akun",
+    
+    // Customization
+    showResetButton: true
   };
 
-  const confirmBulkDelete = () => {
-    try {
-      const { selectedIds } = bulkDeleteModal;
-      const updatedData = data.filter(item => !selectedIds.includes(item.id));
-      setData(updatedData);
-      showSuccess(`${selectedIds.length} akun berhasil dihapus!`);
-    } catch {
-      showError("Gagal menghapus akun");
-    }
-  };
+  // ===== COMPUTED VALUES =====
+  // Filter dan search logic
+  const filteredData = useMemo(() => {
+    return dummyData.filter(item => {
+      const matchesSearch = item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           item.nip.includes(searchTerm);
+      const matchesRole = roleFilter === "Semua Role" || item.role === roleFilter;
+      const matchesStatus = statusFilter === "Semua Status" || item.status === statusFilter;
+      
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [searchTerm, roleFilter, statusFilter, dummyData]);
 
-  const handleBulkEditSubmit = (bulkData) => {
-    try {
-      const loadingId = showLoading("Mengupdate akun...");
-      
-      // Simulate processing time
-      setTimeout(() => {
-        const updatedData = data.map(item => {
-          const bulkItem = bulkData.find(bulk => bulk.id === item.id);
-          return bulkItem ? { ...item, ...bulkItem } : item;
-        });
-        
-        setData(updatedData);
-        setIsBulkEditOpen(false);
-        setBulkEditData([]);
-        
-        // Dismiss loading notification
-        dismissLoading(loadingId);
-        showSuccess(`${bulkData.length} akun berhasil diupdate!`);
-      }, 1000);
-    } catch {
-      showError("Gagal mengupdate akun");
-    }
-  };
+  // Pagination logic
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentData = filteredData.slice(startIndex, endIndex);
 
-  const downloadTemplate = () => {
-    try {
-      const template = [
-        { nama: "Contoh Nama", nipnisn: "1234567890", role: "Guru", status: "Aktif" },
-        { nama: "Contoh Siswa", nipnisn: "0987654321", role: "Orang Tua", status: "Aktif" }
-      ];
-      
-      const csvContent = "data:text/csv;charset=utf-8," 
-        + "Nama,NIP/NISN,Role,Status\n"
-        + template.map(row => Object.values(row).join(",")).join("\n");
-      
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "template_akun_pengguna.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      showSuccess("Template CSV berhasil didownload!");
-    } catch {
-      showError("Gagal download template");
-    }
-  };
+
 
   return (
     <div className="min-h-screen bg-gray-50 pt-0 pb-6">
-      {/* Header Section */}
+      <div className="max-w-6xl mx-auto">
+      {/* ===== HEADER SECTION ===== */}
       <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl text-white">
-              <FaUsers className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">Manajemen Akun Pengguna</h1>
-              <p className="text-gray-600">Kelola semua akun pengguna sistem</p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl text-white">
+            <FaUsers className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-gray-800">Manajemen Akun Pengguna</h1>
+            <p className="text-gray-600">Kelola semua akun pengguna sistem</p>
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200 hover:shadow-lg transition-all duration-200 cursor-pointer" onClick={() => {
-            setRoleFilter("Semua Role");
-            setStatusFilter("Semua Status");
-          }}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-600 text-sm font-medium mb-1">Total Akun</p>
-                <p className="text-3xl font-bold text-blue-800">{totalAkun}</p>
-              </div>
-              <div className="p-3 bg-blue-200 rounded-xl">
-                <FaUsers className="w-8 h-8 text-blue-700" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-xl border border-green-200 hover:shadow-lg transition-all duration-200 cursor-pointer" onClick={() => setStatusFilter("Aktif")}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-600 text-sm font-medium mb-1">Akun Aktif</p>
-                <p className="text-3xl font-bold text-green-800">{akunAktif}</p>
-              </div>
-              <div className="p-3 bg-green-200 rounded-xl">
-                <FaUsers className="w-8 h-8 text-green-700" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-r from-red-50 to-red-100 p-6 rounded-xl border border-red-200 hover:shadow-lg transition-all duration-200 cursor-pointer" onClick={() => setStatusFilter("Nonaktif")}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-red-600 text-sm font-medium mb-1">Akun Nonaktif</p>
-                <p className="text-3xl font-bold text-red-800">{akunNonaktif}</p>
-              </div>
-              <div className="p-3 bg-red-200 rounded-xl">
-                <FaUsers className="w-8 h-8 text-red-700" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Filter Toolbar */}
-      <div className="bg-white p-4 rounded-2xl shadow-lg border border-gray-100 mb-6">
-        <div className="flex items-center justify-between gap-4">
-          {/* Left Side - Filters */}
-          <div className="flex items-center gap-3 flex-1">
-            {/* Search */}
-            <div className="relative flex-1 max-w-xs">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FaSearch className="h-4 w-4 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Cari nama atau NIP/NISN..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
-              />
-            </div>
-            
-            {/* Role Filter */}
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-            >
-              <option>Semua Role</option>
-              <option>Admin</option>
-              <option>Guru</option>
-              <option>Orang Tua</option>
-            </select>
-            
-            {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-            >
-              <option>Semua Status</option>
-              <option>Aktif</option>
-              <option>Nonaktif</option>
-            </select>
-            
-            {/* Reset Button */}
-            <button
-              onClick={() => {
-                setSearchTerm("");
-                setRoleFilter("Semua Role");
-                setStatusFilter("Semua Status");
-              }}
-              className="px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors text-sm"
-            >
-              Reset
-            </button>
-          </div>
-          
-          {/* Right Side - Actions */}
-          <div className="flex items-center gap-2">
-            {/* Import Dropdown */}
-            <div className="relative group">
-              <button
-                type="button"
-                className="px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
-              >
-                <FaUpload className="w-3 h-3" />
-                Import
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+
+        {/* ===== STATISTICS CARDS ===== */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+          <StatCard
+            title="Total Akun"
+            value={totalAkun}
+            icon={FaUsers}
+            color="blue"
+            onClick={() => {
+              setSearchTerm("");
+              setRoleFilter("Semua Role");
+              setStatusFilter("Semua Status");
+              setCurrentPage(1);
               
-              {/* Dropdown Menu */}
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-                <button
-                  onClick={downloadTemplate}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg flex items-center gap-2"
-                >
-                  <FaDownload className="w-3 h-3" />
-                  Download Template CSV
-                </button>
-                <button
-                  onClick={() => setIsBulkImportOpen(true)}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-b-lg flex items-center gap-2"
-                >
-                  <FaUpload className="w-3 h-3" />
-                  Bulk Import
-                </button>
-              </div>
-            </div>
-            
-            {/* Add Account Button */}
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg transition-all duration-200 font-medium flex items-center gap-2 shadow-md hover:shadow-lg"
-            >
-              <FaPlus className="w-3 h-3" />
-              Tambah Akun
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Table Section */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-        <div className="flex items-center gap-3 p-6 border-b border-gray-200">
-          <div className="p-2 bg-gradient-to-r from-indigo-400 to-indigo-500 rounded-lg text-white">
-            <FaUsers className="w-5 h-5" />
-          </div>
-          <h3 className="text-xl font-bold text-gray-800">Daftar Akun Pengguna</h3>
-          <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-            {filteredData.length} dari {totalAkun} akun
-          </span>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <AkunTable 
-            data={currentData} 
-            onEdit={handleEdit} 
-            onDelete={handleDelete} 
-            onBulkEdit={handleBulkEdit}
-            onBulkDelete={handleBulkDelete}
-            totalData={data.length}
-            currentPage={currentPage}
-            itemsPerPage={itemsPerPage}
+              // Show info notification
+              notification.showInfoMessage("reset", "Filter direset ke default");
+            }}
+          />
+          
+          <StatCard
+            title="Akun Aktif"
+            value={akunAktif}
+            icon={FaUsers}
+            color="green"
+            onClick={() => {
+              setStatusFilter("Aktif");
+              setCurrentPage(1);
+              
+              // Show info notification
+              notification.showInfoMessage("filter", "Filter: Status Aktif");
+            }}
+          />
+          
+          <StatCard
+            title="Akun Nonaktif"
+            value={akunNonaktif}
+            icon={FaUsers}
+            color="red"
+            onClick={() => {
+              setStatusFilter("Nonaktif");
+              setCurrentPage(1);
+              
+              // Show info notification
+              notification.showInfoMessage("filter", "Filter: Status Nonaktif");
+            }}
           />
         </div>
-        
-        {/* Pagination Controls */}
-        {filteredData.length > 0 && (
-          <div className="p-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-            {/* Items per page selector */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Tampilkan:</span>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => {
-                  setItemsPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-              <span className="text-sm text-gray-600">dari {filteredData.length} akun</span>
-            </div>
-
-            {/* Pagination info */}
-            <div className="text-sm text-gray-600">
-              Halaman {currentPage} dari {totalPages} 
-              {totalPages > 1 && ` (${startIndex + 1}-${Math.min(endIndex, filteredData.length)} dari ${filteredData.length})`}
-            </div>
-
-            {/* Pagination buttons */}
-            {totalPages > 1 && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  className="px-3 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-                >
-                  ⟪
-                </button>
-                <button
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="px-3 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-                >
-                  ‹
-                </button>
-                
-                {/* Page numbers */}
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setCurrentPage(pageNum)}
-                      className={`px-3 py-2 text-sm border rounded-lg transition-colors ${
-                        currentPage === pageNum
-                          ? "bg-blue-500 text-white border-blue-500"
-                          : "border-gray-200 hover:bg-gray-50"
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-                
-                <button
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-                >
-                  ›
-                </button>
-                <button
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-                >
-                  ⟫
-                </button>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* Modal */}
-      <AkunFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditData(null);
+      {/* ===== SEARCH & FILTER TOOLBAR ===== */}
+      <div className="mb-6">
+        <SearchBar {...searchBarConfig} />
+      </div>
+
+      {/* ===== BULK ACTIONS ===== */}
+      <div className="mb-4">
+        <BulkActions
+          selectedRows={selectedRows}
+          totalRows={dummyData.length}
+          onClearSelection={handleClearSelection}
+          onBulkEdit={handleBulkEdit}
+          onBulkDelete={handleBulkDelete}
+        />
+      </div>
+
+      {/* ===== DATA TABLE ===== */}
+      <div className="mb-6">
+        <DataTable
+          icon={FaUsers}
+          title="Daftar Akun Pengguna"
+          description={`${filteredData.length} dari ${dummyData.length} akun`}
+          iconColor="blue"
+          columns={[
+            { key: "nama", header: "Nama" },
+            { key: "nip", header: "NIP/NISN" },
+            { key: "role", header: "Role" },
+            { key: "status", header: "Status" },
+            { 
+              key: "actions", 
+              header: "Aksi",
+              cell: (_, row) => (
+                <div className="flex gap-2">
+                  <button
+                    className="px-2 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors flex items-center gap-1.5"
+                    onClick={() => {
+                      setEditRow(row);
+                      setIsEditOpen(true);
+                    }}
+                  >
+                    <FaEdit className="w-3.5 h-3.5" />
+                    <span className="text-xs font-medium">Edit</span>
+                  </button>
+        <button
+                    className="px-2 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors flex items-center gap-1.5"
+                    onClick={() => handleSingleDelete(row)}
+        >
+                    <FaTrash className="w-3.5 h-3.5" />
+                    <span className="text-xs font-medium">Hapus</span>
+        </button>
+      </div>
+              )
+            }
+          ]}
+          data={currentData}
+          selectedRows={selectedRows}
+          onRowSelect={setSelectedRows}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          onItemsPerPageChange={(newItemsPerPage) => {
+            setItemsPerPage(newItemsPerPage);
+            setCurrentPage(1);
+            notification.showInfoMessage("pagination", `Menampilkan ${newItemsPerPage} item per halaman`);
+          }}
+          totalItems={filteredData.length}
+        />
+      </div>
+
+      {/* ===== MODALS ===== */}
+      {/* Bulk Import Modal (Manual Only) */}
+      <BulkImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        title="Tambah Banyak Akun (Manual)"
+        fields={[
+          { name: "nama", label: "Nama", type: "text", required: true },
+          {
+            name: "nip",
+            label: "NIP/NISN",
+            type: "text",
+            required: true,
+            validation: "numbersOnly,minLength:10",
+            placeholder: "Hanya angka, minimal 10 digit"
+          },
+          {
+            name: "role",
+            label: "Role",
+            type: "select",
+            required: true,
+            options: [
+              { value: "Admin", label: "Admin" },
+              { value: "Guru", label: "Guru" },
+              { value: "Orang Tua", label: "Orang Tua" }
+            ]
+          },
+          {
+            name: "status",
+            label: "Status",
+            type: "select",
+            required: true,
+            options: [
+              { value: "Aktif", label: "Aktif" },
+              { value: "Nonaktif", label: "Nonaktif" }
+            ]
+          }
+        ]}
+        maxRows={100}
+        onImport={async (rows) => {
+          try {
+            // Map rows to data shape and append to end
+            setDummyData(prev => {
+              let lastId = prev[prev.length - 1]?.id || 0;
+              const mapped = rows.map(r => ({ id: ++lastId, ...r }));
+              return [...prev, ...mapped];
+            });
+            notification.showSuccessMessage("import", `${rows.length} akun`);
+            setIsImportOpen(false);
+          } catch (error) {
+            notification.showErrorMessage("import", error.message);
+          }
         }}
-        onSubmit={handleSubmit}
-        editData={editData}
+      />
+      {/* Add Modal */}
+      <ModalForm
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        title="Tambah Akun Pengguna"
+        fields={[
+          { name: "nama", label: "Nama", type: "text", required: true },
+          {
+            name: "nip",
+            label: "NIP/NISN",
+            type: "text",
+            required: true,
+            validation: "numbersOnly,minLength:10",
+            helpText: "Hanya angka, minimal 10 digit"
+          },
+          {
+            name: "role",
+            label: "Role",
+            type: "select",
+            required: true,
+            options: [
+              { value: "Admin", label: "Admin" },
+              { value: "Guru", label: "Guru" },
+              { value: "Orang Tua", label: "Orang Tua" }
+            ]
+          },
+          {
+            name: "status",
+            label: "Status",
+            type: "select",
+            required: true,
+            options: [
+              { value: "Aktif", label: "Aktif" },
+              { value: "Nonaktif", label: "Nonaktif" }
+            ]
+          }
+        ]}
+        submitText="Tambah Akun"
+        loadingText="Menambahkan..."
+        onSubmit={async (data) => {
+          try {
+            // Generate simple incremental id
+            const nextId = (dummyData[dummyData.length - 1]?.id || 0) + 1;
+            const newItem = { id: nextId, ...data };
+            setDummyData(prev => [...prev, newItem]);
+            notification.showSuccessMessage("create", `akun ${data.nama}`);
+            setIsAddOpen(false);
+          } catch (error) {
+            notification.showErrorMessage("create", error.message, `akun ${data.nama}`);
+          }
+        }}
       />
 
-      {/* Bulk Import Modal */}
-      <BulkImportModal
-        isOpen={isBulkImportOpen}
-        onClose={() => setIsBulkImportOpen(false)}
-        onSubmit={handleBulkImport}
+      {/* Edit Modal */}
+      <ModalForm
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        title="Akun Pengguna"
+        fields={editFields}
+        initialData={editRow}
+        submitText="Simpan Perubahan"
+        loadingText="Menyimpan perubahan..."
+        onSubmit={async (data) => {
+          try {
+            // Update data in the table
+            setDummyData(prevData => 
+              prevData.map(item => 
+                item.id === editRow.id ? { ...item, ...data } : item
+              )
+            );
+            
+            // Show success notification
+            notification.showSuccessMessage("update", `akun ${editRow.nama}`);
+            
+            // Close modal and reset edit state
+            setIsEditOpen(false);
+            setEditRow(null);
+          } catch (error) {
+            notification.showErrorMessage("update", error.message, `akun ${editRow.nama}`);
+          }
+        }}
       />
 
       {/* Bulk Edit Modal */}
-      {isBulkEditOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg text-white">
-                  <FaEdit className="w-5 h-5" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-800">
-                  Edit Bersamaan ({bulkEditData.length} Akun)
-                </h2>
-              </div>
-              <button
-                onClick={() => {
-                  setIsBulkEditOpen(false);
-                  setBulkEditData([]);
-                }}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <FaTimes className="w-5 h-5" />
-              </button>
-            </div>
+      <BulkEditModal
+        isOpen={isBulkEditOpen}
+        onClose={() => setIsBulkEditOpen(false)}
+        selectedRows={selectedRows}
+        selectedData={dummyData.filter(item => selectedRows.includes(item.id))}
+        fields={[
+          {
+            name: "role",
+            label: "Role",
+            type: "select",
+            required: false,
+            options: [
+              { value: "Admin", label: "Admin" },
+              { value: "Guru", label: "Guru" },
+              { value: "Orang Tua", label: "Orang Tua" }
+            ]
+          },
+          {
+            name: "status",
+            label: "Status",
+            type: "select",
+            required: false,
+            options: [
+              { value: "Aktif", label: "Aktif" },
+              { value: "Nonaktif", label: "Nonaktif" }
+            ]
+          }
+        ]}
+        title="Bulk Edit Akun Pengguna"
+        submitText="Simpan Perubahan"
+        loadingText="Menyimpan perubahan..."
+        onSubmit={async (globalData, selectedIds, perItemChanges) => {
+          try {
+            setDummyData(prevData => prevData.map(item => {
+              if (!selectedIds.includes(item.id)) return item;
+              const per = (perItemChanges && perItemChanges[item.id]) || {};
+              const changes = { ...globalData, ...per };
+              if (Object.keys(changes).length === 0) return item;
+              return { ...item, ...changes };
+            }));
+            
+            // Show success notification
+            notification.showSuccessMessage("bulkUpdate");
+            
+            setSelectedRows([]);
+            setIsBulkEditOpen(false);
+          } catch (error) {
+            notification.showErrorMessage("bulkUpdate", error.message);
+          }
+        }}
+      />
 
-            {/* Content */}
-            <div className="p-6">
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                  Akun yang akan diedit:
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {bulkEditData.map((account) => (
-                    <div key={account.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <div className="font-medium text-gray-800">{account.nama}</div>
-                      <div className="text-sm text-gray-600 font-mono">{account.nipnisn}</div>
-                      <div className="text-xs text-gray-500">{account.role} - {account.status}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-800">
-                  Pilih field yang akan diubah:
-                </h3>
-                
-                {/* Role Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ubah Role untuk semua akun:
-                  </label>
-                  <select
-                    onChange={(e) => {
-                      const newRole = e.target.value;
-                      if (newRole) {
-                        const updatedData = bulkEditData.map(acc => ({ ...acc, role: newRole }));
-                        setBulkEditData(updatedData);
-                      }
-                    }}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Pilih Role (opsional)</option>
-                    <option value="Admin">Admin</option>
-                    <option value="Guru">Guru</option>
-                    <option value="Orang Tua">Orang Tua</option>
-                  </select>
-                </div>
-
-                {/* Status Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ubah Status untuk semua akun:
-                  </label>
-                  <select
-                    onChange={(e) => {
-                      const newStatus = e.target.value;
-                      if (newStatus) {
-                        const updatedData = bulkEditData.map(acc => ({ ...acc, status: newStatus }));
-                        setBulkEditData(updatedData);
-                      }
-                    }}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Pilih Status (opsional)</option>
-                    <option value="Aktif">Aktif</option>
-                    <option value="Nonaktif">Nonaktif</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-6 border-t border-gray-200">
-                <button
-                  onClick={() => {
-                    setIsBulkEditOpen(false);
-                    setBulkEditData([]);
-                  }}
-                  className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={() => handleBulkEditSubmit(bulkEditData)}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
-                >
-                  <FaEdit className="w-4 h-4 inline mr-2" />
-                  Update {bulkEditData.length} Akun
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirmation Modals */}
-      <ConfirmationModal
-        isOpen={deleteModal.isOpen}
-        onClose={() => setDeleteModal({ ...deleteModal, isOpen: false })}
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
-        title="Konfirmasi Hapus Akun"
-        message={`Yakin mau hapus akun ${deleteModal.data?.nama}?`}
-        confirmText="Hapus"
-        cancelText="Batal"
+        type={deleteType}
+        itemName={deleteItem?.nama || ""}
+        itemCount={selectedRows.length}
+        title={deleteType === "bulk" ? "Konfirmasi Hapus Massal" : "Konfirmasi Hapus"}
       />
-
-      <ConfirmationModal
-        isOpen={bulkDeleteModal.isOpen}
-        onClose={() => setBulkDeleteModal({ ...bulkDeleteModal, isOpen: false })}
-        onConfirm={confirmBulkDelete}
-        title="Konfirmasi Hapus Akun"
-        message={`Yakin mau hapus ${bulkDeleteModal.selectedIds.length} akun yang dipilih?`}
-        confirmText="Hapus"
-        cancelText="Batal"
-      />
+      </div>
     </div>
   );
 }
