@@ -1,5 +1,5 @@
 import React from "react";
-import { FaSearch, FaChevronDown, FaUpload, FaPlus, FaUsers } from "react-icons/fa";
+import { FaSearch, FaUpload, FaPlus, FaUsers, FaArrowUp } from "react-icons/fa";
 
 export default function SearchBar({
   // Search props
@@ -20,11 +20,12 @@ export default function SearchBar({
   onReset,
   onImport,
   onAdd,
+  onNaikKelas,
   
   // Customization
   importButtonText = "Import",
   addButtonText = "Tambah",
-  showImportDropdown = true,
+  naikKelasButtonText = "Naik Kelas",
   showResetButton = true,
   
   // Styling
@@ -65,9 +66,6 @@ export default function SearchBar({
                   </option>
                 ))}
               </select>
-              <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                <FaChevronDown className="h-3 w-3 text-gray-400" />
-              </div>
             </div>
           )}
 
@@ -85,9 +83,6 @@ export default function SearchBar({
                   </option>
                 ))}
               </select>
-              <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                <FaChevronDown className="h-3 w-3 text-gray-400" />
-              </div>
             </div>
           )}
 
@@ -104,27 +99,27 @@ export default function SearchBar({
 
         {/* Right Section: Action Buttons Only */}
         <div className="flex gap-2">
+          {/* Naik Kelas Button */}
+          {onNaikKelas && (
+            <button
+              onClick={onNaikKelas}
+              className="inline-flex items-center px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-md transition-colors"
+            >
+              <FaArrowUp className="w-3 h-3 mr-1.5" />
+              {naikKelasButtonText}
+            </button>
+          )}
+
           {/* Import Button */}
           {onImport && (
             <div className="relative">
-              {showImportDropdown ? (
-                <button
-                  onClick={onImport}
-                  className="inline-flex items-center px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md transition-colors"
-                >
-                  <FaUsers className="w-3 h-3 mr-1.5" />
-                  {importButtonText}
-                  <FaChevronDown className="w-3 h-3 ml-1.5" />
-                </button>
-              ) : (
-                <button
-                  onClick={onImport}
-                  className="inline-flex items-center px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md transition-colors"
-                >
-                  <FaUsers className="w-3 h-3 mr-1.5" />
-                  {importButtonText}
-                </button>
-              )}
+              <button
+                onClick={onImport}
+                className="inline-flex items-center px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md transition-colors"
+              >
+                <FaUsers className="w-3 h-3 mr-1.5" />
+                {importButtonText}
+              </button>
             </div>
           )}
 

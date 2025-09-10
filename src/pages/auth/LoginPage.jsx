@@ -6,6 +6,7 @@ import { useState } from "react";
 import { FaUser, FaLock, FaEye, FaEyeSlash, FaExclamationCircle, FaSpinner } from "react-icons/fa";
 import logo from "../../assets/logo.png";
 import bgImage from "../../assets/bg-school.png";
+import { login } from "../../services/authService";
 
 // Schema validasi
 const loginSchema = z.object({
@@ -31,21 +32,35 @@ export default function LoginPage() {
 
   const onSubmit = async (data) => {
     setIsLoading(true);
-    
-    // Simulasi delay loading
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Simulasi role berdasarkan username
-    if (data.username.startsWith("1")) {
-      navigate("/admin/dashboard");
-    } else if (data.username.startsWith("2")) {
-      navigate("/guru/dashboard");
-    } else {
-      navigate("/orangtua/dashboard");
+    try {
+      const res = await login(data.username, data.password);
+  
+      if (res.success) {
+        const { token, user } = res.data;
+  
+        // simpan token & user ke localStorage
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(user));
+  
+        // redirect sesuai role
+        if (user.role === "admin") {
+          navigate("/admin/dashboard");
+        } else if (user.role === "guru") {
+          navigate("/guru/dashboard");
+        } else {
+          navigate("/orangtua/dashboard");
+        }
+      } else {
+        alert("Login gagal: " + res.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Login gagal: " + (err.response?.data?.message || "Terjadi kesalahan"));
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
+
 
   return (
     <div className="min-h-screen relative overflow-hidden">

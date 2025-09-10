@@ -95,12 +95,18 @@ export default function BulkImportModal({
         const fieldErrors = [];
 
         // Required validation
-        if (field.required && (!value || value.trim() === "")) {
-          fieldErrors.push(`${field.label} harus diisi`);
+        if (field.required) {
+          if (field.type === "multiselect") {
+            if (!Array.isArray(value) || value.length === 0) {
+              fieldErrors.push(`${field.label} harus dipilih minimal satu`);
+            }
+          } else if (!value || value.trim() === "") {
+            fieldErrors.push(`${field.label} harus diisi`);
+          }
         }
 
         // Type validation
-        if (value && value.trim() !== "") {
+        if (value && field.type !== "multiselect" && value.trim() !== "") {
           switch (field.type) {
             case "email": {
               const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -163,7 +169,18 @@ export default function BulkImportModal({
   // Handle import
   const handleImport = async () => {
     const dataToImport = manualData.filter(row => 
-      Object.keys(row).some(key => row[key] && row[key].trim() !== "")
+      Object.keys(row).some(key => {
+        const value = row[key];
+        if (!value) return false;
+        
+        // Check if this field is multiselect
+        const field = fields.find(f => f.name === key);
+        if (field && field.type === "multiselect") {
+          return Array.isArray(value) && value.length > 0;
+        }
+        
+        return value.trim() !== "";
+      })
     );
 
     if (dataToImport.length === 0) {
@@ -290,6 +307,98 @@ export default function BulkImportModal({
                                 </svg>
                               </div>
                             </div>
+                                                     ) : field.type === "multiselect" ? (
+                             <div className="space-y-2 border border-gray-300 rounded-md">
+                               {(() => {
+                                 // Get all selected children from other rows
+                                 const allSelectedChildren = manualData.reduce((acc, row, idx) => {
+                                   if (idx !== rowIndex && row[field.name] && Array.isArray(row[field.name])) {
+                                     acc.push(...row[field.name]);
+                                   }
+                                   return acc;
+                                 }, []);
+                                 
+                                 // Filter options to show only available children
+                                 const availableOptions = field.options?.filter(option => 
+                                   !allSelectedChildren.includes(option.value)
+                                 ) || [];
+                                 
+                                 // Show message if no children available
+                                 if (availableOptions.length === 0) {
+                                   return (
+                                     <div className="text-center text-gray-500 text-sm py-4">
+                                       Semua anak sudah dipilih di baris lain
+                                     </div>
+                                   );
+                                 }
+                                 
+                                 // Add search functionality if there are many options
+                                 const searchKey = `${rowIndex}-${field.name}-search`;
+                                 const searchValue = manualData[rowIndex]?.[searchKey] || "";
+                                 
+                                 // Filter by search term
+                                 const filteredOptions = availableOptions.filter(option => {
+                                   if (!searchValue) return true;
+                                   return option.label.toLowerCase().includes(searchValue.toLowerCase());
+                                 });
+                                 
+                                 return (
+                                   <>
+                                     {/* Search Box - Fixed at Top */}
+                                     {availableOptions.length > 4 && (
+                                       <div className="p-3 border-b border-gray-200 bg-gray-50">
+                                         <input
+                                           type="text"
+                                           placeholder="Cari anak..."
+                                           value={searchValue}
+                                           onChange={(e) => handleManualInputChange(rowIndex, searchKey, e.target.value)}
+                                           className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                                           onClick={(e) => e.stopPropagation()}
+                                         />
+                                       </div>
+                                     )}
+                                     
+                                     {/* Options List - Scrollable Below Search */}
+                                     <div className="max-h-32 overflow-y-auto p-2">
+                                       {filteredOptions.length === 0 ? (
+                                         <div className="text-center text-gray-500 text-sm py-4">
+                                           {searchValue ? "Tidak ada hasil yang ditemukan" : "Tidak ada opsi tersedia"}
+                                         </div>
+                                       ) : (
+                                         filteredOptions.map((option, optionIndex) => (
+                                           <div key={optionIndex} className="flex items-center">
+                                             <input
+                                               type="checkbox"
+                                               id={`${rowIndex}-${field.name}-${option.value}`}
+                                               checked={Array.isArray(row[field.name]) && row[field.name].includes(option.value)}
+                                               onChange={(e) => {
+                                                 const currentValues = Array.isArray(row[field.name]) ? [...row[field.name]] : [];
+                                                 if (e.target.checked) {
+                                                   if (!currentValues.includes(option.value)) {
+                                                     currentValues.push(option.value);
+                                                   }
+                                                 } else {
+                                                   const index = currentValues.indexOf(option.value);
+                                                   if (index > -1) {
+                                                     currentValues.splice(index, 1);
+                                                   }
+                                                 }
+                                                 handleManualInputChange(rowIndex, field.name, currentValues);
+                                               }}
+                                               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                               disabled={isProcessing}
+                                             />
+                                             <label htmlFor={`${rowIndex}-${field.name}-${option.value}`} className="ml-2 text-sm text-gray-700 cursor-pointer">
+                                               {option.label}
+                                             </label>
+                                           </div>
+                                         ))
+                                       )}
+                                     </div>
+                                   </>
+                                 );
+                               })()}
+                             </div>
                           ) : (
                             <input
                               type={field.type || "text"}
@@ -355,7 +464,18 @@ export default function BulkImportModal({
                 <button
                   onClick={handleImport}
                   disabled={isProcessing || manualData.filter(row => 
-                    Object.keys(row).some(key => row[key] && row[key].trim() !== "")
+                    Object.keys(row).some(key => {
+                      const value = row[key];
+                      if (!value) return false;
+                      
+                      // Check if this field is multiselect
+                      const field = fields.find(f => f.name === key);
+                      if (field && field.type === "multiselect") {
+                        return Array.isArray(value) && value.length > 0;
+                      }
+                      
+                      return value.trim() !== "";
+                    })
                   ).length === 0}
                   className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >

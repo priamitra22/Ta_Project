@@ -540,8 +540,7 @@ export default function StatCardTrial() {
     }
   ];
 
-  // Debug: Log field definitions
-  console.log("🔍 Account Fields:", accountFields);
+
 
   const guruFields = [
     {

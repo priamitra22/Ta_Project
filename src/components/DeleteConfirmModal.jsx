@@ -16,6 +16,8 @@ export default function DeleteConfirmModal({
   type = "single", // "single" atau "bulk"
   itemName = "", // Nama item untuk single delete
   itemCount = 0, // Jumlah item untuk bulk delete
+  warningMessage = "", // Pesan peringatan khusus
+  loading = false, // Loading state
   className = ""
 }) {
   if (!isOpen) return null;
@@ -92,7 +94,9 @@ export default function DeleteConfirmModal({
                     <FaExclamationTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
                     <div className="text-sm text-red-700">
                       <p className="font-medium">Perhatian!</p>
-                      <p>Data yang dihapus tidak dapat dipulihkan kembali. Pastikan Anda telah memilih data yang benar.</p>
+                      <p>
+                        {warningMessage || "Data yang dihapus tidak dapat dipulihkan kembali. Pastikan Anda telah memilih data yang benar."}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -114,10 +118,24 @@ export default function DeleteConfirmModal({
               <button
                 type="button"
                 onClick={onConfirm}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                disabled={loading}
+                className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors ${
+                  loading 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
               >
-                <FaTrash className="w-4 h-4" />
-                {confirmText}
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Menghapus...
+                  </>
+                ) : (
+                  <>
+                    <FaTrash className="w-4 h-4" />
+                    {confirmText}
+                  </>
+                )}
               </button>
             </div>
           </div>

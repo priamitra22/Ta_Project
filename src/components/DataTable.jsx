@@ -29,6 +29,8 @@ export default function DataTable({
   // Styling
   className = ""
 }) {
+  // Safety check for data
+  const safeData = Array.isArray(data) ? data : [];
 
   // Color schemes for icon background
   const iconColorSchemes = {
@@ -46,19 +48,23 @@ export default function DataTable({
 
   // Handle row selection
   const handleSelectAll = (checked) => {
-    if (checked) {
-      const allIds = data.map(item => item.id);
-      onRowSelect?.(allIds, true);
-    } else {
-      onRowSelect?.([], false);
+    if (onRowSelect) {
+      if (checked) {
+        const allIds = safeData.map(item => item.id);
+        onRowSelect(allIds, true);
+      } else {
+        onRowSelect([], false);
+      }
     }
   };
 
   const handleSelectRow = (id, checked) => {
-    if (checked) {
-      onRowSelect?.([...selectedRows, id], true);
-    } else {
-      onRowSelect?.(selectedRows.filter(rowId => rowId !== id), false);
+    if (onRowSelect) {
+      if (checked) {
+        onRowSelect([...selectedRows, id], true);
+      } else {
+        onRowSelect(selectedRows.filter(rowId => rowId !== id), false);
+      }
     }
   };
 
@@ -148,7 +154,7 @@ export default function DataTable({
                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
                      <input
                        type="checkbox"
-                       checked={selectedRows.length === data.length && data.length > 0}
+                       checked={selectedRows.length === safeData.length && safeData.length > 0}
                        onChange={(e) => handleSelectAll(e.target.checked)}
                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                      />
@@ -164,7 +170,9 @@ export default function DataTable({
                   {columns.map((column, index) => (
                     <th
                       key={column.key || index}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className={`px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                        column.key === 'actions' ? 'text-center' : 'text-left'
+                      }`}
                       style={{ 
                         width: column.width || 
                           (column.key === 'nama' ? '280px' : 
@@ -182,7 +190,7 @@ export default function DataTable({
             
             {/* Table Body */}
             <tbody className="bg-white divide-y divide-gray-200">
-              {data.length === 0 ? (
+              {safeData.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length + (showSelection ? 2 : 1)} className="px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center">
@@ -193,7 +201,7 @@ export default function DataTable({
                   </td>
                 </tr>
               ) : (
-                data.map((row, rowIndex) => (
+                safeData.map((row, rowIndex) => (
                   <tr 
                     key={row.id || rowIndex} 
                     className={`hover:bg-gray-50 transition-colors ${
@@ -217,20 +225,25 @@ export default function DataTable({
                       {startIndex + rowIndex + 1}
                     </td>
                     
-                    {/* Dynamic cells */}
-                    {columns.map((column, colIndex) => (
-                      <td
-                        key={column.key || colIndex}
-                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                        style={{ width: column.width || 'auto' }}
-                      >
-                        {column.cell ? (
-                          column.cell(row[column.key], row, rowIndex)
-                        ) : (
-                          <span>{row[column.key]}</span>
-                        )}
-                      </td>
-                    ))}
+                                         {/* Dynamic cells */}
+                     {columns.map((column, colIndex) => (
+                       <td
+                         key={column.key || colIndex}
+                         className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                         style={{ width: column.width || 'auto' }}
+                       >
+                         {column.cell ? (
+                           column.cell(row[column.key], row, rowIndex)
+                         ) : (
+                                                       <span>
+                              {column.key === 'nama' || column.key === 'role' || column.key === 'status'
+                                ? row[column.key]?.charAt(0).toUpperCase() + row[column.key]?.slice(1).toLowerCase()
+                                : row[column.key]
+                              }
+                            </span>
+                         )}
+                       </td>
+                     ))}
                  </tr>
                ))
              )}
@@ -248,14 +261,14 @@ export default function DataTable({
                <span className="text-sm text-gray-700">Tampilkan:</span>
                <select
                  value={itemsPerPage}
-                 onChange={(e) => onItemsPerPageChange?.(parseInt(e.target.value))}
+                 onChange={(e) => onItemsPerPageChange && onItemsPerPageChange(parseInt(e.target.value))}
                  className="border border-blue-500 rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                >
                  {[5, 10, 25, 50, 100].map(size => (
                    <option key={size} value={size}>{size}</option>
                  ))}
                </select>
-               <span className="text-sm text-gray-700">dari {totalItems} akun</span>
+               <span className="text-sm text-gray-700">dari {totalItems} data</span>
              </div>
              
              {/* Center: Page info */}
@@ -269,7 +282,7 @@ export default function DataTable({
              <div className="flex items-center gap-2">
                {/* First page button */}
                <button
-                 onClick={() => onPageChange?.(1)}
+                 onClick={() => onPageChange && onPageChange(1)}
                  disabled={currentPage === 1}
                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                >
@@ -278,7 +291,7 @@ export default function DataTable({
                
                {/* Previous button */}
                <button
-                 onClick={() => onPageChange?.(currentPage - 1)}
+                 onClick={() => onPageChange && onPageChange(currentPage - 1)}
                  disabled={currentPage === 1}
                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                >
@@ -290,7 +303,7 @@ export default function DataTable({
                  {getPageNumbers().map((page, index) => (
                    <button
                      key={index}
-                     onClick={() => typeof page === 'number' && onPageChange?.(page)}
+                     onClick={() => typeof page === 'number' && onPageChange && onPageChange(page)}
                      disabled={page === '...'}
                      className={`px-3 py-1 text-sm border rounded-md transition-colors ${
                        page === currentPage
@@ -307,7 +320,7 @@ export default function DataTable({
                
                {/* Next button */}
                <button
-                 onClick={() => onPageChange?.(currentPage + 1)}
+                 onClick={() => onPageChange && onPageChange(currentPage + 1)}
                  disabled={currentPage === totalPages}
                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                >
@@ -316,7 +329,7 @@ export default function DataTable({
                
                {/* Last page button */}
                <button
-                 onClick={() => onPageChange?.(totalPages)}
+                 onClick={() => onPageChange && onPageChange(totalPages)}
                  disabled={currentPage === totalPages}
                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                >
